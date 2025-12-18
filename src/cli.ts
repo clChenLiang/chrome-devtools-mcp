@@ -90,7 +90,7 @@ export const cliOptions = {
   headers: {
     type: 'string',
     description:
-      'Custom headers to add to all network requests made by the browser in JSON format (e.g., \'{"Authorization":"Bearer token","User-Agent":"Custom"}\').',
+      'Custom headers to add to all network requests made by the browser in JSON format (e.g., \'{"x-env":"visit_from_mcp","x-mock-user":"mcp"}\').',
     coerce: (val: string | undefined) => {
       if (!val) {
         return;
