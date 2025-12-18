@@ -58,6 +58,8 @@ interface McpContextOptions {
   experimentalDevToolsDebugging: boolean;
   // Whether all page-like targets are exposed as pages.
   experimentalIncludeAllPages?: boolean;
+  // Custom headers to add to all network requests made by the browser.
+  headers?: Record<string, string>;
 }
 
 const DEFAULT_TIMEOUT = 5_000;
@@ -104,6 +106,9 @@ export class McpContext implements Context {
   #textSnapshot: TextSnapshot | null = null;
   #networkCollector: NetworkCollector;
   #consoleCollector: ConsoleCollector;
+  
+  // Custom headers to add to all network requests made by the browser.
+  #headers?: Record<string, string>;
 
   #isRunningTrace = false;
   #networkConditionsMap = new WeakMap<Page, string>();
@@ -127,6 +132,7 @@ export class McpContext implements Context {
     this.logger = logger;
     this.#locatorClass = locatorClass;
     this.#options = options;
+    this.#headers = options.headers;
 
     this.#networkCollector = new NetworkCollector(this.browser);
 
@@ -153,8 +159,41 @@ export class McpContext implements Context {
 
   async #init() {
     const pages = await this.createPagesSnapshot();
-    await this.#networkCollector.init(pages);
+    await this.#networkCollector.init(pages, this.#headers);
     await this.#consoleCollector.init(pages);
+  }
+  
+  /**
+   * Gets the custom headers to add to all network requests.
+   */
+  getHeaders(): Record<string, string> | undefined {
+    return this.#headers;
+  }
+  
+  /**
+   * Sets custom headers to add to all network requests.
+   */
+  setHeaders(headers: Record<string, string> | undefined): void {
+    this.#headers = headers;
+    // Update all existing pages with the new headers
+    for (const page of this.#pages) {
+      this.#applyHeadersToPage(page, headers);
+    }
+  }
+  
+  /**
+   * Applies custom headers to a specific page.
+   */
+  async #applyHeadersToPage(page: Page, headers: Record<string, string> | undefined): Promise<void> {
+    try {
+      if (headers) {
+        await page.setExtraHTTPHeaders(headers);
+      } else {
+        await page.setExtraHTTPHeaders({});
+      }
+    } catch (error) {
+      this.logger('Error applying headers to page:', error);
+    }
   }
 
   dispose() {

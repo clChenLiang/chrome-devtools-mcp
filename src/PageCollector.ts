@@ -349,19 +349,40 @@ class PageIssueSubscriber {
 }
 
 export class NetworkCollector extends PageCollector<HTTPRequest> {
+  #headers?: Record<string, string>;
+
   constructor(
     browser: Browser,
     listeners: (
       collector: (item: HTTPRequest) => void,
-    ) => ListenerMap<PageEvents> = collect => {
-      return {
-        request: req => {
-          collect(req);
-        },
-      } as ListenerMap;
-    },
+    ) => ListenerMap<PageEvents> = collect => ({
+      request: req => collect(req),
+    } as ListenerMap),
   ) {
     super(browser, listeners);
+  }
+
+  override async init(pages: Page[], headers?: Record<string, string>): Promise<void> {
+    this.#headers = headers;
+    for (const page of pages) {
+      await this.#applyHeadersToPage(page);
+    }
+    await super.init(pages);
+  }
+
+  override addPage(page: Page): void {
+    super.addPage(page);
+    void this.#applyHeadersToPage(page);
+  }
+
+  async #applyHeadersToPage(page: Page): Promise<void> {
+    if (this.#headers) {
+      try {
+        await page.setExtraHTTPHeaders(this.#headers);
+      } catch (error) {
+        logger('Error applying headers to page:', error);
+      }
+    }
   }
   override splitAfterNavigation(page: Page) {
     const navigations = this.storage.get(page) ?? [];
