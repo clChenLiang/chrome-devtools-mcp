@@ -355,15 +355,24 @@ export class NetworkCollector extends PageCollector<HTTPRequest> {
     browser: Browser,
     listeners: (
       collector: (item: HTTPRequest) => void,
-    ) => ListenerMap<PageEvents> = collect => ({
-      request: req => collect(req),
-    } as ListenerMap),
+    ) => ListenerMap<PageEvents> = collect => {
+      return {
+        request: req => {
+          collect(req);
+        },
+      } as ListenerMap;
+    },
+    options?: Record<string, unknown> & {
+      headers?: Record<string, string>
+    }
   ) {
     super(browser, listeners);
+    if (options?.headers) {
+      this.#headers = options?.headers;
+    }
   }
 
-  override async init(pages: Page[], headers?: Record<string, string>): Promise<void> {
-    this.#headers = headers;
+  override async init(pages: Page[]): Promise<void> {
     for (const page of pages) {
       await this.#applyHeadersToPage(page);
     }
